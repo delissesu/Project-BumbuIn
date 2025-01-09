@@ -14,11 +14,11 @@ data pengguna selalu disimpen ben penak
 harganya di markup
 id automate
 """
-data_semua_pengguna = "project 1\\CSV\\Data Pengguna\\data_semuapengguna.csv"
-barang_file = "project 1\\data_barang.csv"
-riwayat_file = "project 1\\Transaksi.csv"
-saldo_file = "project 1\\saldo_pengguna.csv"
-keranjang_beli = "project 1\\keranjang.csv"
+data_semua_pengguna = "Project BumbuIn\\CSV\\Data Pengguna\\data_semuapengguna.csv"
+barang_file = "Project BumbuIn\\data_barang.csv"
+riwayat_file = "Project BumbuIn\\Transaksi.csv"
+saldo_file = "Project BumbuIn\\saldo_pengguna.csv"
+keranjang_beli = "Project BumbuIn\\keranjang.csv"
 data_pengguna = {}
 
 
@@ -369,10 +369,10 @@ def beli_barang(username):
 
 def lihat_keranjang(username):
     try:
-        if not os.path.exists("project 1\\keranjang.csv"):
+        if not os.path.exists("Project BumbuIn\\keranjang.csv"):
             print(f"File keranjang tidak ditemukan.")
             return
-        keranjang = pd.read_csv("project 1\\keranjang.csv")        
+        keranjang = pd.read_csv("Project BumbuIn\\keranjang.csv")        
         if 'username' not in keranjang.columns:
             print("\nMana usernamenya?")
             return
@@ -396,11 +396,11 @@ def lihat_keranjang(username):
 
 def checkout(username):
     try:
-        keranjang_beli= "project 1\\keranjang.csv"
-        data_barang_file = "project 1\\data_barang.csv"
-        saldo_pengguna_file = "project 1\\saldo_pengguna.csv"
-        riwayat_file = "project 1\\Transaksi.csv"
-        transaksi_file = "project 1\\Transaksi.csv"
+        keranjang_beli= "Project BumbuIn\\keranjang.csv"
+        data_barang_file = "Project BumbuIn\\data_barang.csv"
+        saldo_pengguna_file = "Project BumbuIn\\saldo_pengguna.csv"
+        riwayat_file = "Project BumbuIn\\Transaksi.csv"
+        transaksi_file = "Project BumbuIn\\Transaksi.csv"
         keranjang = pd.read_csv(keranjang_beli)
         keranjang.columns = [col.strip() for col in keranjang.columns]
         keranjang['username'] = keranjang['username'].str.replace(r"['\"]", '', regex=True).str.strip()
@@ -458,7 +458,7 @@ def checkout(username):
 
 def riwayat_pembelian(username):
     try:
-        riwayat = pd.read_csv("project 1\\Transaksi.csv", dtype=str)
+        riwayat = pd.read_csv("Project BumbuIn\\Transaksi.csv", dtype=str)
         transaksi = riwayat[riwayat['username'] == username]
         if transaksi.empty:
             print("\nYah belum ada riwayat ayo beli barang kebutuhan mu!!.")
@@ -712,8 +712,8 @@ def lupa_password(username):
     input("Tekan enter untuk kembali...")
 def pilih_username():
     try:
-        keranjang = pd.read_csv("project 1\\keranjang.csv", dtype=str)
-        riwayat = pd.read_csv("project 1\\Transaksi.csv", dtype=str)
+        keranjang = pd.read_csv("Project BumbuIn\\keranjang.csv", dtype=str)
+        riwayat = pd.read_csv("Project BumbuIn\\Transaksi.csv", dtype=str)
         usernames_keranjang = keranjang['username'].unique()
         usernames_riwayat = riwayat['username'].unique()
         usernames = pd.concat([pd.Series(usernames_keranjang), pd.Series(usernames_riwayat)]).unique()
@@ -843,7 +843,7 @@ def tambah_barang():
     try:
         try:
             baca_tambah_barang = pd.read_csv(
-                "project 1\\data_barang.csv",
+                "Project BumbuIn\\data_barang.csv",
                 dtype={'id_barang': str, 'Stok': float, 'harga': float}
             )
         except FileNotFoundError:
@@ -882,7 +882,7 @@ def tambah_barang():
             'Penjual':[Penjual]
         })
         baca_tambah_barang = pd.concat([baca_tambah_barang, df_baca_tambah_barang], ignore_index=True)
-        baca_tambah_barang.to_csv("project 1\\data_barang.csv", index=False)
+        baca_tambah_barang.to_csv("Project BumbuIn\\data_barang.csv", index=False)
         print("Barang berhasil ditambahkan.")
     except Exception as e:
         print(f"Terjadi kesalahan: {e}")
@@ -940,7 +940,7 @@ def edit_barang(username):
 
 def lihat_riwayat_transaksi(username):
     try:
-        riwayat_transaksi = pd.read_csv("project 1\\Transaksi.csv")
+        riwayat_transaksi = pd.read_csv("Project BumbuIn\\Transaksi.csv")
         if 'Penjual' not in riwayat_transaksi.columns:
             print("\nKolom 'penjual' tidak ditemukan dalam Transaksi.csv.")
             return
@@ -962,7 +962,7 @@ def lihat_riwayat_transaksi(username):
     input("\nTekan enter untuk kembali.")
 def lihat_barang_petani(username):
     try:
-        barang_file = "project 1\\data_barang.csv"
+        barang_file = "Project BumbuIn\\data_barang.csv"
         if not os.path.exists(barang_file):
             print("\nFile data barang tidak ditemukan.")
             return
