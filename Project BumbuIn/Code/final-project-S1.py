@@ -805,7 +805,6 @@ def lihat_barang(barang_file):
     
     input("\nTekan enter untuk kembali...")
 
-
 def menu_petani(username):
     while True:
         clear()
