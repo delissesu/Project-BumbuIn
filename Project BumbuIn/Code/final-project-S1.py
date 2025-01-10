@@ -808,7 +808,7 @@ def lihat_barang(barang_file):
 
 def menu_petani(username):
     while True:
-        # clear()
+        clear()
         print(f"\nHalo {username}! mau ngapain di menu petani?")
         print("1. Tambah Barang")
         print("2. Hapus Barang")
