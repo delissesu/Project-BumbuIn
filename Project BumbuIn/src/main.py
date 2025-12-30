@@ -1,908 +1,458 @@
-import time
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-import pandas as pd
 import os
-# Removed legacy globals and helper functions
-
+import time
+import sys
+from tabulate import tabulate
+from typing import List, Dict, Any, Optional
 import database
 
-def clear():
+def bubble_sort(data: List[Dict], key: str, descending: bool = False) -> List[Dict]:
+    """
+    Algoritma Bubble Sort untuk mengurutkan daftar produk.
+    Kompleksitas: O(n^2) - Cocok untuk pembelajaran.
+    """
+    n = len(data)
+    data_sorted = data.copy() # Agar data asli tidak berubah
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            # Tentukan kondisi swap berdasarkan descending/ascending
+            if descending:
+                should_swap = data_sorted[j][key] < data_sorted[j + 1][key]
+            else:
+                should_swap = data_sorted[j][key] > data_sorted[j + 1][key]
+            
+            if should_swap:
+                # Tukar posisi
+                data_sorted[j], data_sorted[j + 1] = data_sorted[j + 1], data_sorted[j]
+    return data_sorted
+
+def binary_search(data: List[Dict], target_id: str) -> Optional[Dict]:
+    # Pastikan data terurut berdasarkan id_barang (konversi ke int untuk perbandingan yang benar)
+    # Kita urutkan salinan data agar tidak merusak urutan asli tampilan
+    sorted_data = sorted(data, key=lambda x: int(x['id_barang']))
+    
+    low = 0
+    high = len(sorted_data) - 1
+    target_int = int(target_id)
+    
+    while low <= high:
+        mid = (low + high) // 2
+        mid_val = int(sorted_data[mid]['id_barang'])
+        
+        if mid_val == target_int:
+            return sorted_data[mid]
+        elif mid_val < target_int:
+            low = mid + 1
+        else:
+            high = mid - 1
+            
+    return None
+
+def tampilkan_stack_riwayat(transaksi_list: List[Dict]):
+    # Konsep Stack: LIFO (Last In First Out)
+    # Kita gunakan list[::-1] atau reversed() untuk membalik urutan
+    stack_tampilan = []
+    headers = ["ID Barang", "Nama Barang", "Jumlah", "Harga", "Total", "Penjual"]
+    
+    # Push data ke stack tampilan (dari belakang ke depan)
+    for t in reversed(transaksi_list):
+        stack_tampilan.append([
+            t['id_barang'],
+            t['nama_barang'],
+            t['jumlah'],
+            f"Rp {t['harga']:,.0f}",
+            f"Rp {t['total_harga']:,.0f}",
+            t['penjual']
+        ])
+        
+    print(tabulate(stack_tampilan, headers=headers, tablefmt="fancy_grid"))
+
+def clear_screen():
+    """Membersihkan layar terminal."""
     os.system('cls' if os.name == 'nt' else 'clear')
-    
-def cek_data_pengguna():
-    data_pengguna = database.load_users() # Load users directly
-    if not data_pengguna:
-        print("Belum ada pengguna yang terdaftar")
-        return pd.DataFrame()
-    else:
-        df = pd.DataFrame.from_dict(data_pengguna, orient="index")
-        df.index.name = "Username"
-        df.reset_index(inplace=True)
-        return df
-    
-def validasi_username(data_pengguna=None): 
-    # Note: data_pengguna argument is kept for compatibility if needed, 
-    # but we should fetch fresh data if None
-    if data_pengguna is None:
-        data_pengguna = database.load_users()
-        
-    while True:
-        clear()
-        tampilan_daftar_bumbuin()
-        username = input("Buat username (min. 4 karakter dan maks. 12 karakter): ").strip().title()
-        while True:
-            if len(username) < 4:
-                clear()
-                print(f"Username terlalu pendek! Minimal {4} karakter.")
-                input("Tekan enter untuk mencoba lagi...")
-                break
-            elif len(username) > 12:
-                print(f"Username terlalu panjang! Maksimal {12} karakter")
-            elif username in data_pengguna:
-                print("Username sudah ada kak! Pakai username lain yaa!")
-                input("Tekan enter untuk mencoba lagi...")
-                break
-            else:
-                return username
 
-
-def validasi_password():
+def validasi_input_angka(prompt: str) -> float:
+    """Meminta input angka valid dari pengguna."""
     while True:
-        clear()
-        password = input("Buat password (min. 6 karakter dan maks. 8 karakter): ").strip()
-        if len(password) < 6:
-            print(f"Paaword terlalu pendek! Minimal {6} karakter.")
-            input("Tekan enter untuk mencoba lagi...")
-            continue
-        elif len(password) > 8:
-            print(f"Password terlalu panjang! Maksimal {8} karakter.")
-            input("Tekan enter untuk mencoba lagi...")
-            continue
-        else:
-            konfirmasi_password = input("Konfirmasi password: ")
-            if konfirmasi_password != password:
-                print("Password tidak cocok!")
-                input("Tekan enter untuk mencoba lagi...")
-                continue
-            else:
-                return password
-
-def pilih_tipe_user():
-    while True:
-        print("\nPilih Tipe User:\n1. Petani\n2. Pembeli")
-        tipe_user = input("Yuk dipilih! (1/2): ")
-        if tipe_user in ["1", "2"]:
-            return tipe_user
-        else:
-            print(f"Pilihan {tipe_user} tidak valid. Silahkan pilih (1/2)!")
-            continue
-
-def pilih_tipe_pembeli():
-
-    list_tipe_pembeli = {
-        "1" : "Anak Kosan",
-        "2" : "Pembeli Warungan",
-        "3" : "Pelaku Industri"
-    }
-    for tipe_pembeli, data in list_tipe_pembeli.items():
-        print(f"{tipe_pembeli}. {data}")
-    while True:
-        tipe_pembeli = input("Yuk dipilih (1/2/3): ")
-        if tipe_pembeli in list_tipe_pembeli:
-            return list_tipe_pembeli[tipe_pembeli]
-        else:
-            print(f"Hey, pilihan {tipe_pembeli} tidak ada! Silahkan pilih (1/2/3)!")
-
-def tampilan_daftar_bumbuin():
-        print(f"+{"="*25}+{"="*25}+")
-        print(f"| {"Halo, Selamat Datang di BumbuIn! Ayo Daftar Dulu!"} |")
-        print(f"+{"="*25}+{"="*25}+") 
-        
-def daftar(): 
-    # load_data_pengguna() # Removed
-    while True:
-        clear()
-        tampilan_daftar_bumbuin()
-        username = validasi_username(data_pengguna)
-        password = validasi_password()
-        clear()
-        print(f"Halo {username}! Silahkan pilih tipe user terlebih dahulu.")
-        time.sleep(1)
-        while True:
-            tipe_user = pilih_tipe_user()
-            try:
-                if tipe_user == "2":
-                    print(f"Halo Kak {username}! Mau jadi pembeli yang mana?")
-                    time.sleep(1)
-                    tipe_pembeli = pilih_tipe_pembeli()
-                    
-                    database.save_user(username, password, "pembeli", tipe_pembeli)
-                elif tipe_user == "1":
-                    database.save_user(username, password, "petani")
-                
-                # load_data_pengguna() # Removed
-                print(f"Halo {username}! Kamu terdaftar.")
-                return
-            except Exception as e:
-                print(f"Terjadi kesalahan: {e}")
-                input("Tekan enter untuk mencoba lagi...")
-                continue
-        
-def validasi_angka(prompt):
-    while True:
-        # clear()
         try:
-            value = float(input(prompt))
-            return value
+            nilai = float(input(prompt))
+            if nilai < 0:
+                print("Angka tidak boleh negatif!")
+                continue
+            return nilai
         except ValueError:
-            input("Masukkan angka yang valid! Tekan enter untuk mencoba lagi...")
+            print("Masukkan angka yang valid!")
 
-def validasi_huruf(prompt):
-    while True:
-        value = input(prompt).strip()
-        if value ==  "":
-            return value
-        if all(char.isalpha() or char.isspace() for char in value):
-            return value.capitalize()
-        print("Masukkan hanya huruf!")
+def format_rupiah(nilai: float) -> str:
+    """Format angka ke format Rupiah standar."""
+    return f"Rp {nilai:,.0f}".replace(",", ".")
 
-def hitung_harga_diskon(harga, tipe_pembeli):
+def hitung_diskon_pembeli(harga: float, tipe_pembeli: str) -> float:
+    """Menghitung harga akhir berdasarkan tipe pembeli (Logika Bisnis)."""
     if tipe_pembeli == 'Pelaku Industri':
-        return harga * 0.9
+        return harga * 0.90  # Diskon 10%
     elif tipe_pembeli == 'Pembeli Warungan':
-        return harga * 0.95
+        return harga * 0.95  # Diskon 5%
     return harga
-        
-def menu_pembeli(username, tipe_pembeli):
-    while True:
-        clear()
-        panjang_tabel = 60
-        nama_pesan_pembeli = f"Halo {username}! Kamu mau ngapain sebagai {tipe_pembeli}?"
-        print("\n" + "=" * panjang_tabel)
-        print(f"| {nama_pesan_pembeli.center(panjang_tabel - 4)} |")
-        print("=" * panjang_tabel)
-        print("1. Lihat Daftar Barang")
-        print("2. Beli Barang")
-        print("3. Top-up Saldo")
-        print("4. Cek Saldo")
-        print("5. Lihat Keranjang")
-        print("6. Checkout")
-        print("7. Riwayat Pembelian")
-        print("0. Keluar")
-        pilihan = input("Pilih menu: ")
-        
-        if pilihan == "1":
-            clear()
-            lihat_daftar(username)
-        elif pilihan == "2":
-            clear()
-            beli_barang(username)
-        elif pilihan == "3":
-            clear()
-            topup_saldo(username)
-        elif pilihan == "4":
-            clear()
-            cek_saldo(username)
-        elif pilihan == "5":
-            clear()
-            lihat_keranjang(username)
-        elif pilihan == "6":
-            clear()
-            checkout(username)
-        elif pilihan == "7":
-            clear()
-            riwayat_pembelian(username)
-        elif pilihan == "0":
-            menu_utama()
-            break
-        else:
-            print("Pilihan belum tersedia atau tidak valid!")
-
-def lihat_daftar(username):
-    try:
-        data_barang = database.load_products()
-        if data_barang.empty:
-            print("\nBelum ada barang yang dijual.")
-        else:
-            users = database.load_users()
-            if username not in users:
-                print("Username tidak ditemukan dalam daftar pengguna.")
-                return
-            tipe_pembeli = users[username].get('tipe_pembeli', '')
-            
-            # Dynamic pricing calculation
-            data_barang['Harga_tersedia'] = data_barang['harga'].apply(lambda x: hitung_harga_diskon(x, tipe_pembeli))
-            
-            panjang_tabel = 62
-            nama_pembeli = f"Halo {username}! Yuk lihat barang yang dijual!"
-            print("\n" + "=" * panjang_tabel)
-            print(f"| {nama_pembeli.center(panjang_tabel - 4)} |")
-            print("=" * panjang_tabel)
-            tabel_barang = data_barang[['id_barang', 'nama_barang', 'Stok', 'Harga_tersedia', 'Penjual']]
-            print(tb(tabel_barang, headers=["ID Barang", "Nama Barang", "Stok", "Harga", "Penjual"], tablefmt="fancy_grid", showindex=False))
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-    input("\nTekan Enter untuk kembali ke menu utama...")
-    
-def beli_barang(username):
-    try:
-        data_barang = database.load_products()
-        users = database.load_users()
-        if username not in users:
-            print("Username tidak ditemukan dalam daftar pengguna.")
-            return
-        tipe_pembeli = users[username].get('tipe_pembeli', '')
-        
-        # Dynamic pricing
-        data_barang['Harga_tersedia'] = data_barang['harga'].apply(lambda x: hitung_harga_diskon(x, tipe_pembeli))
-
-        panjang_tabel = 62
-        nama_pesan = f"Hai {username}! Mau Beli apa di BumbuIn?"
-        print("\n" + "=" * panjang_tabel)
-        print(f"| {nama_pesan.center(panjang_tabel - 4)} |")
-        print("=" * panjang_tabel)
-        tabel_barang = data_barang[['id_barang', 'nama_barang', 'Stok', 'Harga_tersedia', 'Penjual']]
-        while True:
-            print(tb(tabel_barang, headers=["ID Barang", "Nama Barang", "Stok", "Harga", "Penjual"], tablefmt="fancy_grid", showindex=False))
-            id_barang = input("\nMasukkan ID Barang yang ingin dibeli: ").strip()
-            if id_barang == '':
-                input("ID Barang tidak boleh kosong! Tekan Enter untuk mencoba lagi...")
-                continue
-            if not data_barang['id_barang'].eq(id_barang).any():
-                input("ID barang yang kamu cari tidak ada! Tekan Enter untuk mencoba lagi...")
-                continue
-            try:
-                jumlah_input = input("Masukkan jumlah yang ingin dibeli: ").strip()
-                if jumlah_input == '':
-                    input("Jumlah tidak boleh kosong! Tekan Enter untuk mencoba lagi...")
-                    continue
-                jumlah = int(jumlah_input)
-                if jumlah <= 0:
-                    input("Jumlah harus lebih dari 0! Tekan Enter untuk mencoba lagi...")
-                    continue
-                konfirmasi = input("Kamu yakin ingin melanjutkan pembelian ini? (y/n): ").strip().lower()
-                if konfirmasi in ['y', 'yes', 'ya', 'iya', '1']:
-                    break
-                else:
-                    input("Proses pembelian dibatalkan.")
-                    return
-            except ValueError:
-                input("Masukkan jumlah yang valid! Tekan Enter untuk mencoba lagi...")
-
-        barang_dipilih = data_barang[data_barang['id_barang'] == id_barang]
-        stok = barang_dipilih['Stok'].values[0]
-        if jumlah > stok:
-            print(f"Jumlah yang diminta melebihi stok yang tersedia! Stok saat ini: {stok}")
-            return
-        
-        harga = barang_dipilih['Harga_tersedia'].values[0]
-        penjual = barang_dipilih['Penjual'].values[0] 
-        total_harga = harga * jumlah
-        
-        # FIX: Do not deduct stock here. Only add to cart. Stock is deducted at checkout.
-        database.add_to_cart(username, id_barang, barang_dipilih['nama_barang'].values[0], jumlah, harga, total_harga, penjual)
-        print("\nTransaksi berhasil dimasukkan ke keranjang!")
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-
-    input("\nTekan enter untuk kembali ke menu utama...")
-
-
-def lihat_keranjang(username):
-    try:
-        keranjang_user = database.load_cart(username)
-        if keranjang_user.empty:
-            print(f"\nYah, keranjang Kak {username} kosong. Yuk tambah barangnya dulu!")
-        else:
-            panjang_tabel = 52
-            nama_pesan = f"Hai {username}! Yuk lihat isi keranjang kamu!"
-            print("\n" + "=" * panjang_tabel)
-            print(f"| {nama_pesan.center(panjang_tabel - 4)} |")
-            print("=" * panjang_tabel)
-            keranjang_user_tb = keranjang_user[['id_barang', 'jumlah', 'harga', 'total_harga']]
-            print(tb(keranjang_user_tb, headers=["ID Barang", "Jumlah", "Harga", "Total Harga"], tablefmt="fancy_grid", showindex=False))
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-    input("\nTekan enter untuk kembali.")
-
-
-def checkout(username):
-    try:
-        keranjang_pengguna = database.load_cart(username)
-        if keranjang_pengguna.empty:
-            input(f"Wah, keranjang kak {username} masih kosong! Yuk, tambah barang dulu!")
-            return
-        
-        total_harga = keranjang_pengguna['total_harga'].sum()
-        saldo_sekarang = database.get_balance(username)
-        
-        if saldo_sekarang < total_harga:
-            print("Saldo tidak cukup untuk melakukan checkout. Silakan isi saldo terlebih dahulu.")
-            return
-
-        # Try to deduct stock first to ensure availability
-        try:
-            for _, item in keranjang_pengguna.iterrows():
-                id_barang = item['id_barang']
-                jumlah_beli = item['jumlah']
-                # Try to reduce stock. If insufficient, this raises ValueError
-                database.update_product_stock(id_barang, -jumlah_beli)
-        except ValueError as e:
-            # If stock deduction fails, we should ideally rollback (not implemented simply here)
-            # But for this simple app, we just stop and warn.
-            # NOTE: In a real app, we need transactions. Here, manual rollback or careful check is needed.
-            print(f"Checkout gagal: {e}")
-            print("Silakan cek kembali stok barang.")
-            return
-
-        # Deduct balance (if stock deduction was successful)
-        database.update_balance(username, -total_harga)
-        
-        # Record transaction
-        database.add_transactions(keranjang_pengguna)
-        
-        # Clear cart
-        database.clear_cart(username)
-        
-        saldo_akhir = database.get_balance(username)
-        print(f"\nCheckout berhasil! Saldo akhir Anda adalah: Rp.{saldo_akhir:,.2f}".replace(",", "."))
-
-    except Exception as error:
-        print(f"Terjadi kesalahan: {error}")
-
-    input("Tekan enter untuk kembali ke menu utama...")
-
-def riwayat_pembelian(username):
-    try:
-        transaksi = database.load_transactions(username)
-        if transaksi.empty:
-            print("\nYah belum ada riwayat ayo beli barang kebutuhan mu!!.")
-        else:
-            panjang_tabel = 64
-            nama_judul = f"Halo {username}! Yuk lihat riwayat belanjaanmu!"
-            print("\n" + "=" * panjang_tabel)
-            print(f"| {nama_judul.center(panjang_tabel - 4)} |")
-            print("=" * panjang_tabel)
-            print(tb(transaksi[["id_barang", "jumlah", "harga", "total_harga","Penjual"]], headers=["ID Barang", "Jumlah", "Harga", "Total Harga", "Penjual"], tablefmt="fancy_grid", showindex=False))
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-    input("\nTekan enter untuk kembali.")
-
-
-def topup_saldo(username):
-    try:
-        jumlah_topup = float(input("Masukkan jumlah saldo yang ingin di-top-up: "))
-        database.update_balance(username, jumlah_topup)
-        print("Saldo berhasil ditambahkan!")
-        input("Tekan Enter untuk kembali ke menu utama...")
-    except ValueError:
-        print("Masukkan jumlah saldo yang valid!")
-
-def cek_saldo(username):
-    saldo = database.get_balance(username)
-    print(f"Halo Kak! Saldo Kak {username} saat ini: Rp.{saldo:,.2f}".replace(",", "."))
-    input("Tekan Enter untuk kembali ke menu utama...")
-
-
-def menu_admin(username):
-    data_barang = baca_data_barang()
-    penjualan = baca_riwayat_penjualan()
-    while True:
-        clear()
-        panjang_tabel = 60
-        nama_pesan_admin = f"Halo {username}! Mau ngapain di menu admin?"
-        print("\n" + "=" * panjang_tabel)
-        print(f"| {nama_pesan_admin.center(panjang_tabel - 4)} |")
-        print("=" * panjang_tabel)
-
-        print("1. Tambah Barang")
-        print("2. Lihat Riwayat Pembelian")
-        print("3. Lihat Stok Barang")
-        print("4. Barang Kurang Diminati")
-        print("5. Barang Paling Diminati")
-        print("6. Tambah Pengguna")
-        print("7. Lihat Daftar Pengguna")
-        print("8. Perbarui Pengguna")
-        print("9. Hapus Pengguna")
-        print("0. Kembali ke Menu Utama")
-        admin_memilih = input("Yuk dipilih! (1-9)): ").strip()
-        if admin_memilih == "1":
-            clear()
-            tambah_barang()
-        elif admin_memilih == "2":
-            clear()
-            username_terpilih = pilih_username()
-            if username_terpilih:
-                clear()
-                riwayat_pembelian(username_terpilih)
-        elif admin_memilih == "3":
-            clear()
-        elif admin_memilih == "3":
-            clear()
-            lihat_barang()
-        elif admin_memilih == "4":
-            clear()
-            laporan_slow(data_barang, penjualan)
-        elif admin_memilih == "5":
-            clear()
-            laporan_fast(data_barang, penjualan)
-        elif admin_memilih == "6":
-            clear()
-            tambah_pengguna()
-        elif admin_memilih == "7":
-            clear()
-            lihat_pengguna()
-        elif admin_memilih == "8":
-            clear()
-            perbarui_pengguna()
-        elif admin_memilih == "9":
-            clear()
-            hapus_pengguna()
-        elif admin_memilih == "0":
-            return
-        else:
-            print("Wah, pilihan kamu tidak ada. Pilih ulang yaa!")
-            input("Tekan enter untuk mencoba lagi")
-            
-def laporan_slow(data_barang, penjualan):
-    barang_tidak_terjual = {
-        nama_barang: info
-        for nama_barang, info in data_barang.items()
-        if not any(nama_barang.lower().strip() == item.lower().strip() for item in penjualan.keys())
-    }
-    slow_moving = {
-        key: jumlah
-        for key, jumlah in penjualan.items()
-        if jumlah < 4
-    }
-    nama_laporan = "=== Laporan Slow-Moving ==="
-    panjang_tabel = 80
-    print("\n" + "=" * panjang_tabel)
-    print(f"| {nama_laporan.center(panjang_tabel - 4)} |")
-    print("=" * panjang_tabel)
-    print(f"+{'='*10}+{'='*20}+{'='*15}+{'='*10}+{'='*10}+")
-    print(f"| {'ID Barang':<8} | {'Nama Barang':<18} | {'Jumlah Terjual':<13} | {'Stok':<8} | {'Harga':<6} |")
-    print(f"+{'='*10}+{'='*20}+{'='*15}+{'='*10}+{'='*10}+")
-    
-    for nama_barang, info in barang_tidak_terjual.items():
-        print(f"| {info['id_barang']:<8} | {nama_barang:<18} | {'0':<13} | {info['stok']:<8} | {info['harga']:<8} |")
-    # print("tes")
-
-    for nama_barang, jumlah_terjual in slow_moving.items():
-        info = data_barang.get(nama_barang, None)
-        if info:
-            print(f"| {info['id_barang']:<8} | {nama_barang:<18} | {jumlah_terjual:<13} | {info['stok']:<8} | {info['harga']:<8} |")
-    print(f"+{'='*10}+{'='*20}+{'='*15}+{'='*10}+{'='*10}+")
-    input("\nTekan enter untuk kembali...")
-
-def laporan_fast(data_barang, penjualan):
-    fast_moving = {
-        key: jumlah
-        for key, jumlah in penjualan.items()
-        if jumlah >= 4
-    }
-    nama_laporan = "=== Laporan Fast-Moving ==="
-    panjang_tabel = 70
-    print("\n" + "=" * panjang_tabel)
-    print(f"| {nama_laporan.center(panjang_tabel - 4)} |")
-    print("=" * panjang_tabel)
-    
-    # Styling manual untuk tabel
-    print(f"+{'='*10}+{'='*20}+{'='*15}+{'='*10}+")
-    print(f"| {'ID Barang':<8} | {'Nama Barang':<18} | {'Jumlah Terjual':<13} | {'Harga':<6} |")
-    print(f"+{'='*10}+{'='*20}+{'='*15}+{'='*10}+")
-    for nama_barang, jumlah_terjual in fast_moving.items():
-        info = data_barang.get(nama_barang, None)
-        if info:
-            print(f"| {info['id_barang']:<8} | {nama_barang:<18} | {jumlah_terjual:<13} | {info['harga']:<8} |")
-    print(f"+{'='*10}+{'='*20}+{'='*15}+{'='*10}+")
-    input("\nTekan enter untuk kembali...")
-    
-def tambah_pengguna():
-    print("\n=== Tambah Pengguna Baru ===")
-    username = validasi_username()
-    if username:
-        password = validasi_password()
-        tipe_pengguna = input("Masukkan tipe pengguna (admin/petani/pembeli): ").strip().lower()
-        tipe_pembeli = ""
-        if tipe_pengguna == "pembeli":
-            tipe_pembeli = input("Masukkan tipe pembeli: ").strip().title()
-        
-        database.save_user(username, password, tipe_pengguna, tipe_pembeli)
-        # load_data_pengguna() # Removed
-        print(f"\nPengguna {username} berhasil ditambahkan.")
-    input("\nTekan enter untuk kembali ke menu admin...")
-
-def lihat_pengguna():
-    users = database.load_users()
-    if not users:
-        print("Belum ada pengguna yang terdaftar")
-    else:
-        df = pd.DataFrame.from_dict(users, orient="index")
-        df.index.name = "Username"
-        df.reset_index(inplace=True)
-        print(tb(df, headers=['Username', 'Password', 'Tipe Pengguna', 'Tipe Pembeli'], tablefmt="fancy_grid", showindex=False))
-    input("\nTekan enter untuk kembali ke menu admin...")
-    
-def perbarui_pengguna():
-    print("\n=== Perbarui Pengguna ===")
-    username = input("Masukkan username yang ingin diperbarui: ").strip().title()
-    users = database.load_users()
-    if username in users:
-        info = users[username]
-        print(f"\nInformasi saat ini untuk {username}: {info}")
-        pilihan = input("Apa yang ingin diperbarui? (password/tipe pengguna/tipe pembeli): ").strip().lower()
-        
-        new_password = info["password"]
-        new_tipe_pengguna = info["tipe_pengguna"]
-        new_tipe_pembeli = info.get("tipe_pembeli", "")
-
-        if pilihan == "password":
-            new_password = validasi_password()
-        elif pilihan == "tipe pengguna":
-            new_tipe_pengguna = input("Masukkan tipe pengguna baru: ").strip().lower()
-        elif pilihan == "tipe pembeli":
-            if new_tipe_pengguna == "pembeli":
-                new_tipe_pembeli = input("Masukkan tipe pembeli baru: ").strip().lower()
-            else:
-                print("Pengguna bukan tipe pembeli.")
-                input("\nTekan enter untuk kembali...")
-                return
-        else:
-            print("Pilihan tidak valid.")
-            input("\nTekan enter untuk kembali...")
-            return
-            
-        database.save_user(username, new_password, new_tipe_pengguna, new_tipe_pembeli)
-        # load_data_pengguna() # Removed
-        print(f"\nPengguna {username} berhasil diperbarui.")
-    else:
-        print("Username tidak ditemukan.")
-    input("\nTekan enter untuk kembali ke menu admin...")
-
-def hapus_pengguna():
-    username = input("Masukkan username yang ingin dihapus: ").strip().title()
-    users = database.load_users()
-    if username in users:
-        konfirmasi = input(f"Apakah Anda yakin ingin menghapus pengguna {username}? (y/n): ").strip().lower()
-        if konfirmasi == 'y':
-            database.delete_user(username)
-            # load_data_pengguna() # Removed
-            print(f"\nPengguna {username} berhasil dihapus.")
-        else:
-            print("Penghapusan dibatalkan.")
-    else:
-        print("Username tidak ditemukan.")
-    input("\nTekan enter untuk kembali ke menu admin...")
-
-# Removed legacy simpan_data_pengguna
-
-def lupa_password(username):
-    users = database.load_users()
-    if username in users:
-        password = users[username]["password"]
-        print(f"Password untuk username '{username}' adalah: {password}")
-    else:
-        print("Username tidak ditemukan!")
-    input("Tekan enter untuk kembali...")
-def pilih_username():
-    try:
-        keranjang = database.load_cart()
-        riwayat = database.load_transactions()
-        usernames_keranjang = keranjang['username'].unique() if not keranjang.empty else []
-        usernames_riwayat = riwayat['username'].unique() if not riwayat.empty else []
-        usernames = pd.concat([pd.Series(usernames_keranjang), pd.Series(usernames_riwayat)]).unique()
-        if not len(usernames):
-            print("\nTidak ada username yang terdaftar.")
-            return None
-        print("\nDaftar Username:")
-        for i, user in enumerate(usernames, start=1):
-            print(f"{i}. {user}")
-        pilihan = int(input("\nMasukkan nomor username yang ingin dilihat riwayat pembeliannya: ")) - 1
-        if 0 <= pilihan < len(usernames):
-            return usernames[pilihan]
-        else:
-            print("Pilihan tidak valid.")
-            return None
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-        return None
-    
-def baca_data_barang(unused_path=None):
-    df = database.load_products()
-    data_barang = {}
-    for _, row in df.iterrows():
-        # NOTE: 'Harga_tersedia' is no longer stored in CSV. 
-        # For reporting purposes, we use base price or 0.
-        data_barang[row['nama_barang']] = {
-            "id_barang": row['id_barang'],
-            "stok": int(float(row['Stok'])),
-            "harga": int(float(row['harga'])),
-            "harga_tersedia": row['harga'] 
-        }
-    return data_barang
-
-def baca_riwayat_penjualan(unused_path=None):
-    try:
-        df = database.load_transactions()
-        if df.empty:
-            return {}
-        # Simple aggregation: count transactions per item name
-        # Note: Original code had a bug where it hardcoded jumlah = 1
-        # I will keep the compatibility but use actual 'jumlah' if possible
-        penjualan = df.groupby('nama_barang')['jumlah'].sum().to_dict()
-        return penjualan
-    except Exception as e:
-        print(f"Terjadi kesalahan saat membaca riwayat penjualan: {e}")
-        return {}
-    
-def lihat_barang(unused_path=None):
-    try:
-        data_barang = database.load_products()
-        if data_barang.empty:
-            print("Data barang kosong! Tidak ada barang yang tersedia saat ini.")
-            return
-        panjang_tabel = 60
-        nama_laporaan = "Daftar Barang Tersedia"
-        print("\n"+"="*panjang_tabel)
-        print(f"| {nama_laporaan.center(panjang_tabel-4)} |")
-        print("="*panjang_tabel)
-        print(f"+{'-'*10}+{'-'*20}+{'-'*10}+{'-'*10}+")
-        print(f"| {'ID Barang':<8} | {'Nama Barang':<18} | {'Harga':<8} | {'Stok':<7} |")
-        print(f"+{'-'*10}+{'-'*20}+{'-'*10}+{'-'*10}+")
-        for _, row in data_barang.iterrows():
-            print(f"| {row['id_barang']:<8} | {row['nama_barang']:<18} | {row['harga']:<8} | {row['Stok']:<8} |")
-        print(f"+{'-'*10}+{'-'*20}+{'-'*10}+{'-'*10}+")
-    except Exception as e:
-        print(f"Terjadi kesalahan saat membaca data barang: {e}")
-    
-    input("\nTekan enter untuk kembali...")
-
-def menu_petani(username):
-    while True:
-        clear()
-        print(f"\nHalo {username}! mau ngapain di menu petani?")
-        print("1. Tambah Barang")
-        print("2. Hapus Barang")
-        print("3. Edit Barang")
-        print("4. Lihat Barang")
-        print("5. Lihat Data Penjualan")
-        print("0. Keluar")
-        pilihan = input("Pilih menu: ")
-        if pilihan == "1":
-            clear()
-            tambah_barang()
-        elif pilihan == "2":
-            clear()
-            hapus_barang()
-        elif pilihan == "3":
-            clear()
-            edit_barang(username)
-        elif pilihan == "4":
-            clear()
-            lihat_barang_petani(username)
-        elif pilihan == "5":
-            # clear()
-            lihat_riwayat_transaksi(username)
-        elif pilihan == "0":
-            clear()
-            menu_utama()
-            break
-        else:
-            print("Pilihan tidak valid.")
-            
-def tambah_barang():
-    try:
-        baca_tambah_barang = database.load_products()
-        if baca_tambah_barang.empty:
-            id_barang = 1
-        else:
-            id_barang = int(baca_tambah_barang['id_barang'].max()) + 1
-        
-        while True:
-            nama_barang = validasi_huruf("Masukkan Nama Barang: ").strip()
-            if nama_barang:
-                break
-            else:
-                input("Nama barang tidak boleh kosong! Tekan Enter untuk mencoba lagi...")
-        
-        stok = validasi_angka("Masukkan Jumlah Barang: ")
-        harga = validasi_angka("Masukkan Harga Barang: ")
-        penjual = validasi_huruf("Masukkan Nama Petani: ").strip().title()
-        
-        database.save_product(id_barang, nama_barang, stok, harga, penjual)
-        print("Barang berhasil ditambahkan.")
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-
-def hapus_barang():
-    try:
-        df = database.load_products()
-        if df.empty:
-            print("Belum ada barang yang dijual.")
-            return
-        print(tb(df[["id_barang", "nama_barang", "Stok", "harga"]], headers=["ID Barang", "Nama Barang", "Stok", "Harga"], tablefmt="fancy_grid", showindex=False))
-        id_barang_input = validasi_angka("Masukkan ID Barang yang ingin dihapus: ")
-        id_barang = str(int(id_barang_input))
-        
-        if id_barang in df["id_barang"].values:
-            database.delete_product(id_barang)
-            input("Barang berhasil dihapus.")
-        else:
-            print("ID Barang tidak ditemukan.")
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-
-
-def edit_barang(username):
-    try:
-        df = database.load_products()
-        if df.empty:
-            print("Belum ada barang yang dijual.")
-            return
-        print(tb(df[['id_barang', 'nama_barang', 'Stok', 'harga','Penjual']], headers=["ID Barang", "Nama Barang", "Stok", "Harga","Penjual"], tablefmt="fancy_grid", showindex=False))
-        id_barang_input = validasi_angka("Masukkan ID Barang yang ingin diubah: ")
-        id_barang = str(int(id_barang_input))
-        
-        if id_barang in df["id_barang"].values:
-            while True:
-                nama_barang = validasi_huruf("Masukkan Nama Barang baru: ")
-                if nama_barang:
-                    break
-                else:
-                    print("Nama barang tidak boleh kosong!")
-            stok = validasi_angka("Masukkan Stok baru: ")
-            harga = validasi_angka("Masukkan Harga baru: ")
-            penjual = validasi_huruf("Masukkan Nama Petani: ").strip().title()
-            
-            database.save_product(id_barang, nama_barang, stok, harga, penjual)
-            print("Barang berhasil diubah.")
-        else:
-            print("ID Barang tidak ditemukan.")
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-
-def lihat_riwayat_transaksi(username):
-    try:
-        riwayat_user = database.load_transactions()
-        if riwayat_user.empty:
-            print("\nAnda belum memiliki riwayat transaksi.")
-            return
-
-        riwayat_user['Penjual'] = riwayat_user['Penjual'].str.strip().str.lower()
-        username = username.strip().lower()
-        riwayat_user = riwayat_user[riwayat_user['Penjual'] == username]
-        
-        if riwayat_user.empty:
-            print("\nAnda belum memiliki riwayat transaksi.")
-        else:
-            panjang_tabel = 60
-            nama_pesan = f"Halo {username}! Ini riwayat penjualan kamu:"
-            print("\n" + "=" * panjang_tabel)
-            print(f"| {nama_pesan.center(panjang_tabel - 4)} |")
-            print("=" * panjang_tabel)
-            print(tb(riwayat_user[['id_barang', 'jumlah', 'harga', 'total_harga', 'username']], headers=["ID Barang", "Jumlah", "Harga", "Total Harga", "Pembeli"], tablefmt="fancy_grid", showindex=False))
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-
-    input("\nTekan enter untuk kembali.")
-def lihat_barang_petani(username):
-    try:
-        data_barang = database.load_products()
-        if data_barang.empty:
-            print("\nTidak ada barang yang ditemukan.")
-            return
-        
-        data_barang['Penjual'] = data_barang['Penjual'].str.strip().str.lower()
-        username = username.strip().lower()
-        barang_penjual = data_barang[data_barang['Penjual'] == username]
-        
-        if barang_penjual.empty:
-            print("\nTidak ada barang yang ditemukan untuk penjual ini.")
-        else:
-            print(f"\nWah, Halo {username}! Ini barang yang kamu jual: ")
-            print(tb(barang_penjual[['id_barang', 'nama_barang', 'Stok', 'harga']], 
-                    headers=['ID Barang', 'Nama Barang', 'Stok', 'Harga'], tablefmt="fancy_grid", showindex=False))
-    except Exception as e:
-        print(f"Terjadi kesalahan: {e}")
-
-    input("\nTekan enter untuk kembali ke menu utama...") 
 
 def login():
-    # load_data_pengguna() # Removed
-    kesalahan_login = 0  
+    """Menu Login Utama."""
     while True:
-        clear()
-        users = database.load_users()
-        if not users:
-            print("Data pengguna tidak ditemukan. Silahkan daftar terlebih dahulu.")
-            return
-            
-        panjang_tabel = 40
-        print(f"+{'='*panjang_tabel}+")
-        print(f"|{'Selamat Datang di Login Menu Bumbuln':^{panjang_tabel}}|")
-        print(f"|{'Silahkan login terlebih dahulu.':^{panjang_tabel}}|")
-        print(f"+{'='*panjang_tabel}+")
-        username = input("Masukkan username: ").strip().title()
-        password = input("Masukkan password: ").strip()
+        clear_screen()
+        print("=== LOGIN BUMBUIN ===")
+        print("1. Login")
+        print("2. Daftar")
+        print("0. Keluar")
+        pilihan = input("Pilih menu: ")
         
-        if not username or not password:
-            print("Username atau password tidak boleh kosong!")
-            input("Tekan enter untuk mencoba lagi...")
-            continue
-        
-        if username == "Admin" and password == "admin123":
-            menu_admin(username)
-            return
-        
-        if username in users:
-            info = users[username]
-            if info["password"] == password:
-                kesalahan_login = 0  
-                tipe_pengguna = info.get("tipe_pengguna", "").strip().lower() 
-                
-                if tipe_pengguna == "admin":
-                    menu_admin(username)
-                elif tipe_pengguna == "petani":
-                    menu_petani(username)
-                elif tipe_pengguna == "pembeli":
-                    tipe_pembeli = info.get("tipe_pembeli", "")
-                    menu_pembeli(username, tipe_pembeli)
-                else:
-                    print("Tipe pengguna tidak dikenal!")
-                return
-            else:
-                kesalahan_login += 1  
-                if kesalahan_login >= 3:
-                    lupa_password(username)
-                    kesalahan_login = 0  
-                else:
-                    print("Password salah! Silahkan coba lagi.")
-                    input("Tekan enter untuk mencoba lagi...")
+        if pilihan == "1":
+            proses_login()
+        elif pilihan == "2":
+            proses_daftar()
+        elif pilihan == "0":
+            print("Sampai Jumpa!")
+            sys.exit()
         else:
-            print("Username tidak ditemukan!")
-            mau_daftar_gak = input("Mau daftar? (y/n): ")
-            if mau_daftar_gak.lower() == "y":
-                daftar()
-            else:
-                return
-            
-def menu_utama():
+            input("Pilihan tidak valid. Tekan Enter...")
+
+def proses_login():
+    """Proses autentikasi user."""
+    clear_screen()
+    print("--- Form Login ---")
+    username = input("Username: ").strip()
+    password = input("Password: ").strip()
+    
+    # Ambil data dari database (Returns Dict)
+    data_user = database.muat_data_pengguna()
+    
+    # Logika Login Sederhana (Dictionary lookup O(1))
+    user = data_user.get(username)
+    
+    if user and user['password'] == password:
+        tipe = user['tipe_pengguna'].lower()
+        if tipe == 'admin':
+            menu_admin(username)
+        elif tipe == 'petani':
+            menu_petani(username)
+        elif tipe == 'pembeli':
+            menu_pembeli(username, user.get('tipe_pembeli'))
+        else:
+            print("Tipe akun tidak dikenali.")
+            input("Enter...")
+    else:
+        print("Username atau Password salah!")
+        input("Tekan Enter untuk mencoba lagi...")
+
+def proses_daftar():
+    """Proses registrasi user baru."""
+    clear_screen()
+    print("--- Daftar Akun Baru ---")
+    
+    # Validasi Username
+    data_user = database.muat_data_pengguna()
     while True:
-        clear()
-        try:
-            nama_aplikasi = "Selamat Datang di BumbuIn"
-            panjang_tabel = len(nama_aplikasi) + 20
-            print(f"\n{"=" * panjang_tabel}")
-            print(f"| {nama_aplikasi.center(panjang_tabel-4)} |")
-            print(f"{"=" * panjang_tabel}")    
-            print(f"+{"="*4}+{"="*(panjang_tabel-6)}+")
-            print(f"| {"No":<2} | {"Menu":<{panjang_tabel-8}} |")
-            print(f"+{"="*4}+{"="*(panjang_tabel-6)}+")
-            print(f"| {"1":<2} | {"Daftar":<{panjang_tabel-8}} |")
-            print(f"| {"2":<2} | {"Login":<{panjang_tabel-8}} |")
-            print(f"| {"0":<2} | {"Keluar":<{panjang_tabel-8}} |")
-            print(f"+{"="*4}+{"="*(panjang_tabel-6)}+")
-            pilih_awal = input("Silahkan pilih menu yang sesuai (0/1/2): ")
-            if pilih_awal == "1":
-                clear()
-                daftar()
-            elif pilih_awal == "2":
-                clear()
-                login()
-            elif pilih_awal == "0":
-                print("Terima kasih sudah berbelanja!\nProgram akan berhenti dalam hitungan...")
-                for i in reversed(range(3)):
-                    i += 1
-                    print(f"{i}...")
-                    time.sleep(1)
-                break
-            else:
-                print(f"Wah! Pilihan {pilih_awal} tidak ada. Pilih ulang yaa!")
-                input("Tekan enter untuk mencoba lagi...")
-                continue
-        except KeyboardInterrupt:
-            print("\nProgram dihentikan oleh pengguna!")
+        username = input("Username baru: ").strip()
+        if len(username) < 4:
+            print("Username minimal 4 karakter.")
+            continue
+        if username in data_user:
+            print("Username sudah dipakai!")
+            continue
+        break
+        
+    password = input("Password: ").strip()
+    
+    print("\nPilih Peran:")
+    print("1. Petani")
+    print("2. Pembeli")
+    peran_input = input("Pilih (1/2): ")
+    
+    tipe_pengguna = "petani" if peran_input == "1" else "pembeli"
+    tipe_pembeli = ""
+    
+    if tipe_pengguna == "pembeli":
+        print("\nTipe Pembeli:")
+        print("1. Anak Kosan (Tidak ada diskon)")
+        print("2. Pembeli Warungan (Diskon 5%)")
+        print("3. Pelaku Industri (Diskon 10%)")
+        tipe_input = input("Pilih tipe: ")
+        mapping = {"1": "Anak Kosan", "2": "Pembeli Warungan", "3": "Pelaku Industri"}
+        tipe_pembeli = mapping.get(tipe_input, "Anak Kosan")
+    
+    database.simpan_pengguna_baru(username, password, tipe_pengguna, tipe_pembeli)
+    print("Pendaftaran Berhasil! Silakan Login.")
+    input("Tekan Enter...")
+
+# Menu Admin
+def menu_admin(username: str):
+    while True:
+        clear_screen()
+        print(f"Halo, Admin {username}!")
+        print("1. Tambah Barang")
+        print("2. Lihat Semua Transaksi")
+        print("3. Analisis Barang (Fast/Slow Moving)")
+        print("4. Lihat Stok Barang")
+        print("0. Logout")
+        
+        pilihan = input("Pilih menu: ")
+        
+        if pilihan == "1":
+            admin_tambah_barang()
+        elif pilihan == "2":
+            admin_lihat_transaksi()
+        elif pilihan == "3":
+            admin_analisis_barang()
+        elif pilihan == "4":
+            tampilkan_daftar_barang(database.muat_data_produk())
+            input("Enter untuk kembali...")
+        elif pilihan == "0":
             break
-menu_utama()
+
+def admin_tambah_barang():
+    clear_screen()
+    print("--- Tambah Barang Baru ---")
+    nama = input("Nama Barang: ").strip()
+    stok = validasi_input_angka("Stok Awal: ")
+    harga = validasi_input_angka("Harga Satuan: ")
+    penjual = input("Nama Penjual (Petani): ").strip()
+    
+    # Generate ID Sederhana (Max ID + 1)
+    produk_list = database.muat_data_produk()
+    if not produk_list:
+        new_id = 1
+    else:
+        # List comprehension untuk ambil semua ID
+        ids = [int(p['id_barang']) for p in produk_list]
+        new_id = max(ids) + 1
+        
+    database.simpan_produk(str(new_id), nama, stok, harga, penjual)
+    print(f"Barang berhasil disimpan dengan ID {new_id}")
+    input("Enter...")
+
+def admin_lihat_transaksi():
+    clear_screen()
+    transaksi = database.muat_transaksi()
+    if not transaksi:
+        print("Belum ada transaksi.")
+    else:
+        tampilkan_stack_riwayat(transaksi) # Pakai Stack Helper
+    input("Enter...")
+
+def admin_analisis_barang():
+    clear_screen()
+    print("--- Analisis Penjualan ---")
+    transaksi = database.muat_transaksi()
+    produk = database.muat_data_produk()
+    
+    # Hitung jumlah terjual per barang manual (Procedural Logic)
+    terjual_counter = {} # Dict untuk menghitung
+    for t in transaksi:
+        nama = t['nama_barang']
+        jumlah = t['jumlah']
+        if nama in terjual_counter:
+            terjual_counter[nama] += jumlah
+        else:
+            terjual_counter[nama] = jumlah
+            
+    print("\n[Fast Moving - Terjual > 5]")
+    headers = ["Nama Barang", "Total Terjual"]
+    fast = [[k, v] for k, v in terjual_counter.items() if v > 5]
+    print(tabulate(fast, headers=headers))
+    
+    print("\n[Slow Moving - Terjual <= 5]")
+    slow = [[k, v] for k, v in terjual_counter.items() if v <= 5]
+    print(tabulate(slow, headers=headers))
+    input("Enter...")
+
+# Menu Pembeli
+def menu_pembeli(username: str, tipe_pembeli: str):
+    while True:
+        clear_screen()
+        print(f"Halo, {username} ({tipe_pembeli})")
+        print("1. Lihat & Cari Barang")
+        print("2. Beli Barang (Masuk Keranjang)")
+        print("3. Lihat Keranjang & Checkout")
+        print("4. Cek Saldo & Top Up")
+        print("5. Riwayat Pembelian")
+        print("0. Logout")
+        
+        pilihan = input("Pilih: ")
+        
+        if pilihan == "1":
+            pembeli_lihat_barang(tipe_pembeli)
+        elif pilihan == "2":
+            pembeli_beli_barang(username, tipe_pembeli)
+        elif pilihan == "3":
+            pembeli_checkout(username)
+        elif pilihan == "4":
+            pembeli_saldo(username)
+        elif pilihan == "5":
+            pembeli_riwayat(username)
+        elif pilihan == "0":
+            break
+
+def tampilkan_daftar_barang(data_barang: List[Dict], tipe_pembeli: str = ""):
+    """Helper untuk menampilkan tabel barang dengan harga diskon."""
+    tabel_view = []
+    for p in data_barang:
+        harga_asli = p['harga']
+        harga_final = hitung_diskon_pembeli(harga_asli, tipe_pembeli)
+        
+        tabel_view.append([
+            p['id_barang'],
+            p['nama_barang'],
+            p['stok'],
+            format_rupiah(harga_asli),
+            format_rupiah(harga_final),
+            p['penjual']
+        ])
+    
+    print(tabulate(tabel_view, headers=["ID", "Nama", "Stok", "Harga Dasar", "Harga Kamu", "Penjual"], tablefmt="fancy_grid"))
+
+def pembeli_lihat_barang(tipe_pembeli: str):
+    clear_screen()
+    produk = database.muat_data_produk()
+    if not produk:
+        print("Barang kosong.")
+        input("Enter...")
+        return
+        
+    print("Opsi Pengurutan:")
+    print("1. ID (Default)")
+    print("2. Harga Termurah (Bubble Sort Ascending)")
+    print("3. Harga Termahal (Bubble Sort Descending)")
+    sort_opsi = input("Pilih: ")
+    
+    if sort_opsi == "2":
+        produk = bubble_sort(produk, "harga", descending=False)
+    elif sort_opsi == "3":
+        produk = bubble_sort(produk, "harga", descending=True)
+        
+    tampilkan_daftar_barang(produk, tipe_pembeli)
+    input("Enter...")
+
+def pembeli_beli_barang(username: str, tipe_pembeli: str):
+    clear_screen()
+    print("--- Beli Barang ---")
+    produk = database.muat_data_produk()
+    
+    # Tampilkan dulu
+    tampilkan_daftar_barang(produk, tipe_pembeli)
+    
+    target_id = input("\nMasukkan ID Barang yang mau dibeli: ").strip()
+    
+    # Gunakan BINARY SEARCH untuk mencari ID (Algoritma Requirement)
+    # Binary search butuh data terurut
+    barang_ditemukan = binary_search(produk, target_id)
+    
+    if barang_ditemukan:
+        print(f"\nDitemukan: {barang_ditemukan['nama_barang']}")
+        stok_tersedia = barang_ditemukan['stok']
+        harga_satuan = hitung_diskon_pembeli(barang_ditemukan['harga'], tipe_pembeli)
+        
+        jumlah = validasi_input_angka("Mau beli berapa? ")
+        
+        if jumlah > stok_tersedia:
+            print("Stok tidak cukup!")
+        else:
+            total = jumlah * harga_satuan
+            print(f"Total: {format_rupiah(total)}")
+            confirm = input("Masukan ke keranjang? (y/n): ")
+            if confirm.lower() == 'y':
+                database.tambah_ke_keranjang(
+                    username, 
+                    barang_ditemukan['id_barang'], 
+                    barang_ditemukan['nama_barang'], 
+                    int(jumlah), 
+                    harga_satuan, 
+                    total, 
+                    barang_ditemukan['penjual']
+                )
+                print("Berhasil masuk keranjang!")
+    else:
+        print("ID Barang tidak ditemukan (Binary Search returned None).")
+    input("Enter...")
+
+def pembeli_checkout(username: str):
+    clear_screen()
+    keranjang = database.muat_keranjang(username)
+    if not keranjang:
+        print("Keranjang kosong.")
+        input("Enter...")
+        return
+        
+    total_tagihan = sum(item['total_harga'] for item in keranjang)
+    saldo_user = database.ambil_saldo(username)
+    
+    print("--- Keranjang Belanja ---")
+    # Tampilkan keranjang manual
+    data_tabel = [[k['nama_barang'], k['jumlah'], format_rupiah(k['total_harga'])] for k in keranjang]
+    print(tabulate(data_tabel, headers=["Barang", "Jml", "Total"]))
+    
+    print(f"\nTotal Tagihan: {format_rupiah(total_tagihan)}")
+    print(f"Saldo Kamu : {format_rupiah(saldo_user)}")
+    
+    if saldo_user < total_tagihan:
+        print("Saldo kurang! Silakan Top Up dulu.")
+    else:
+        konfirmasi = input("Bayar sekarang? (y/n): ")
+        if konfirmasi.lower() == 'y':
+            try:
+                # 1. Kurangi Stok (Validasi stok lagi)
+                for item in keranjang:
+                    database.update_stok_produk(item['id_barang'], -item['jumlah'])
+                
+                # 2. Kurangi Saldo
+                database.update_saldo(username, -total_tagihan)
+                
+                # 3. Simpan Transaksi & Bersihkan Keranjang
+                database.tambah_transaksi(keranjang)
+                database.bersihkan_keranjang(username)
+                
+                print("Checkout Berhasil! Terima kasih.")
+            except ValueError as e:
+                print(f"Gagal Checkout: {e}")
+                
+    input("Enter...")
+
+def pembeli_saldo(username: str):
+    clear_screen()
+    saldo = database.ambil_saldo(username)
+    print(f"Saldo Saat Ini: {format_rupiah(saldo)}")
+    print("\n1. Top Up")
+    print("0. Kembali")
+    pilih = input("Pilih: ")
+    if pilih == "1":
+        jumlah = validasi_input_angka("Nominal Top Up: ")
+        database.update_saldo(username, jumlah)
+        print("Top Up Berhasil!")
+        input("Enter...")
+
+def pembeli_riwayat(username: str):
+    clear_screen()
+    transaksi = database.muat_transaksi(username)
+    if not transaksi:
+        print("Belum ada riwayat.")
+    else:
+        print("--- Riwayat Belanja (Tumpukan/Stack) ---")
+        tampilkan_stack_riwayat(transaksi)
+    input("Enter...")
+
+# Menu Petani (Simplified)
+def menu_petani(username: str):
+    while True:
+        clear_screen()
+        print(f"Halo, Petani {username}!")
+        print("1. Kelola Barang Saya")
+        print("0. Logout")
+        pilih = input("Pilih: ")
+        if pilih == "1":
+            # Reuse fungsi admin tp filter by penjual (Untuk simplifikasi kita pakai logic admin tambah barang)
+            admin_tambah_barang() 
+        elif pilih == "0":
+            break
+
+if __name__ == "__main__":
+    try:
+        login()
+    except KeyboardInterrupt:
+        print("\nProgram dihentikan.")
