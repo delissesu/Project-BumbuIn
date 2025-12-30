@@ -90,7 +90,10 @@ def muat_data_pengguna() -> Dict[str, Dict[str, str]]:
         pembeli = pengguna.get("tipe_pembeli") or pengguna.get("Tipe Pembeli")
         
         if username:
-            data_dict[username] = {
+            # Gunakan key lowercase untuk pencarian case-insensitive
+            # Simpan 'nama_asli' agar tampilan tetap bagus (misal: "Halo Azizah!")
+            data_dict[username.lower()] = {
+                "nama_asli": username, 
                 "password": str(password),
                 "tipe_pengguna": str(tipe),
                 "tipe_pembeli": str(pembeli) if pembeli else ""

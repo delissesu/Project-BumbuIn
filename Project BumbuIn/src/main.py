@@ -32,7 +32,10 @@ def binary_search(data: List[Dict], target_id: str) -> Optional[Dict]:
     
     low = 0
     high = len(sorted_data) - 1
-    target_int = int(target_id)
+    try:
+        target_int = int(target_id)
+    except ValueError:
+        return None
     
     while low <= high:
         mid = (low + high) // 2
@@ -125,16 +128,20 @@ def proses_login():
     data_user = database.muat_data_pengguna()
     
     # Logika Login Sederhana (Dictionary lookup O(1))
-    user = data_user.get(username)
+    # Gunakan lower() saat lookup agar case-insensitive
+    user = data_user.get(username.lower())
     
     if user and user['password'] == password:
+        # Gunakan nama asli dari database untuk greeting
+        nama_sesi = user.get('nama_asli', username) 
         tipe = user['tipe_pengguna'].lower()
+        
         if tipe == 'admin':
-            menu_admin(username)
+            menu_admin(nama_sesi)
         elif tipe == 'petani':
-            menu_petani(username)
+            menu_petani(nama_sesi)
         elif tipe == 'pembeli':
-            menu_pembeli(username, user.get('tipe_pembeli'))
+            menu_pembeli(nama_sesi, user.get('tipe_pembeli'))
         else:
             print("Tipe akun tidak dikenali.")
             input("Enter...")
@@ -154,7 +161,8 @@ def proses_daftar():
         if len(username) < 4:
             print("Username minimal 4 karakter.")
             continue
-        if username in data_user:
+        # Cek duplikasi secara case-insensitive
+        if username.lower() in data_user:
             print("Username sudah dipakai!")
             continue
         break
@@ -342,7 +350,19 @@ def pembeli_beli_barang(username: str, tipe_pembeli: str):
     
     # Gunakan BINARY SEARCH untuk mencari ID (Algoritma Requirement)
     # Binary search butuh data terurut
-    barang_ditemukan = binary_search(produk, target_id)
+    while True:
+        target_id_input = input("\nMasukkan ID Barang yang mau dibeli (atau '0' untuk kembali): ").strip()
+        if not target_id_input:
+            print("ID Barang tidak boleh kosong!")
+            continue
+        if target_id_input == '0':
+            return
+        if not target_id_input.isdigit():
+             print("ID Barang harus berupa angka!")
+             continue
+        break
+
+    barang_ditemukan = binary_search(produk, target_id_input)
     
     if barang_ditemukan:
         print(f"\nDitemukan: {barang_ditemukan['nama_barang']}")
